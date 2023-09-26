@@ -15,7 +15,9 @@ function Push(options) {
 
 Push.prototype.checkoutPing = function() {
     var _this = this;
-    setTimeout(function () {
+    _this.checkoutPingTimer && clearTimeout(_this.checkoutPingTimer);
+    _this.checkoutPingTimer = setTimeout(function () {
+        _this.checkoutPingTimer = 0;
         if (_this.connection.state === 'connected') {
             _this.connection.send('{"event":"pusher:ping","data":{}}');
             if (_this.pingTimeoutTimer) {
@@ -83,7 +85,7 @@ Push.prototype.createConnection = function () {
             }
             if (event === 'pusher:connection_established') {
                 _this.connection.socket_id = data.socket_id;
-                _this.connection.state = 'connected';
+                _this.connection.updateNetworkState('connected');
                 _this.subscribeAll();
             }
             if (event.indexOf('pusher_internal') !== -1) {
@@ -158,6 +160,7 @@ function createChannel(channel_name, push)
     channel.subscribeCb = function () {
         push.connection.send(JSON.stringify({event:"pusher:subscribe", data:{channel:channel_name}}));
     }
+    channel.processSubscribe();
     return channel;
 }
 
@@ -189,17 +192,17 @@ function createPresenceChannel(channel_name, push)
     return createPrivateChannel(channel_name, push);
 }
 
-/*window.addEventListener('online',  function(){
-    var con;
-    for (var i in Push.instances) {
-        con = Push.instances[i].connection;
-        con.reconnectInterval = 1;
-        if (con.state === 'connecting') {
-            con.connect();
+uni.onNetworkStatusChange(function (res) {
+    if(res.isConnected) {
+        for (var i in Push.instances) {
+            con = Push.instances[i].connection;
+            con.reconnectInterval = 1;
+            if (con.state === 'connecting') {
+                con.connect();
+            }
         }
     }
-});*/
-
+});
 
 function Connection(options) {
     this.dispatcher = new Dispatcher();

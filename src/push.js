@@ -15,7 +15,9 @@ function Push(options) {
 
 Push.prototype.checkoutPing = function() {
     var _this = this;
-    setTimeout(function () {
+    _this.checkoutPingTimer && clearTimeout(_this.checkoutPingTimer);
+    _this.checkoutPingTimer = setTimeout(function () {
+        _this.checkoutPingTimer = 0;
         if (_this.connection.state === 'connected') {
             _this.connection.send('{"event":"pusher:ping","data":{}}');
             if (_this.pingTimeoutTimer) {
@@ -61,11 +63,11 @@ Push.prototype.createConnection = function () {
                 clearTimeout(_this.pingTimeoutTimer);
                 _this.pingTimeoutTimer = 0;
             }
-           
+
             params = JSON.parse(params.data);
             var event = params.event;
             var channel_name = params.channel;
-            
+
             if (event === 'pusher:pong') {
                 _this.checkoutPing();
                 return;
@@ -83,7 +85,7 @@ Push.prototype.createConnection = function () {
             }
             if (event === 'pusher:connection_established') {
                 _this.connection.socket_id = data.socket_id;
-                _this.connection.state = 'connected';
+                _this.connection.updateNetworkState('connected');
                 _this.subscribeAll();
             }
             if (event.indexOf('pusher_internal') !== -1) {
@@ -158,6 +160,7 @@ function createChannel(channel_name, push)
     channel.subscribeCb = function () {
         push.connection.send(JSON.stringify({event:"pusher:subscribe", data:{channel:channel_name}}));
     }
+    channel.processSubscribe();
     return channel;
 }
 
@@ -341,16 +344,16 @@ var __extends = (this && this.__extends) || function (d, b) {
 
 function Channel(connection, channel_name) {
     this.subscribed = false;
-	this.dispatcher = new Dispatcher();
+    this.dispatcher = new Dispatcher();
     this.connection = connection;
     this.channelName = channel_name;
     this.subscribeCb = null;
     this.queue = [];
-	__extends(this, this.dispatcher);
-	var properies = ['on', 'off', 'emit'];
-	for (var i in properies) {
+    __extends(this, this.dispatcher);
+    var properies = ['on', 'off', 'emit'];
+    for (var i in properies) {
         this[properies[i]] = this.dispatcher[properies[i]];
-	}
+    }
 }
 
 Channel.prototype.processSubscribe = function () {
@@ -383,7 +386,7 @@ Channel.prototype.trigger = function (event, data) {
 
 ////////////////
 var Collections = (function () {
-	var exports = {};
+    var exports = {};
     function extend(target) {
         var sources = [];
         for (var _i = 1; _i < arguments.length; _i++) {
@@ -490,8 +493,8 @@ var Collections = (function () {
     exports.mapObject = mapObject;
     function filter(array, test) {
         test = test || function (value) {
-                return !!value;
-            };
+            return !!value;
+        };
         var result = [];
         for (var i = 0; i < array.length; i++) {
             if (test(array[i], i, array, result)) {
